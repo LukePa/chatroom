@@ -48,7 +48,7 @@ class Server(object):
     def __init__(self):
         self._clientList = []
         self._serversock = socket.socket()
-        self._serversock.bind((socket.gethostname(), PORT))
+        self._serversock.bind(("", PORT))
         self._serversock.listen(10)
         self._serversock.settimeout(TIMEOUTTIME)
         print("Server has started...")
