@@ -55,6 +55,8 @@ class Server(object):
 
     def broadcast(self, message):
         """Send a message to all clients"""
+        if type(message) != bytes:
+            message = message.encode()
         print("Broadcasting: ", message)
         for client in self._clientList:
             client.sendMessage(message)
@@ -67,7 +69,17 @@ class Server(object):
             username = usernameBytes.decode()
             print(addr, " has connected, username: ", username)
             client = Client(conn, addr, username)
+            introMessage = """
+################################
+# Welcome to the chatroom!     #
+# Type to talk and enter /help #
+# for command list (WIP)       #
+################################
+"""
+            client.sendMessage(introMessage.encode())
+            joinMessage = username + " has joined the server!"
             self._clientList.append(client)
+            self.broadcast(joinMessage)
         except socket.timeout:
             return None
 
