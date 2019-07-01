@@ -1,4 +1,4 @@
-import socket
+import socket, threading
 
 #port the chatroom runs on
 PORT = 6789
@@ -7,12 +7,14 @@ TIMEOUTTIME = 0.5
 
 class Client(object):
     """Represents clients connecting to the server"""
-    def __init__(self, sock, address, username):
+    def __init__(self, sock, address, username, server):
         """sock is socket object for specific client, username is string"""
         self._sock = sock
         self._address = address
-        self._sock.settimeout(TIMEOUTTIME)
         self._username = username
+        self._recieverThread = threading.Thread(target=self.recieverThreadMethod,
+                                                args=(server,))
+        self._killThread = False
 
     def getUsername(self):
         return self._username
@@ -21,7 +23,11 @@ class Client(object):
         return self._address
 
     def disconnect(self):
+        self._killThread = True
         self._sock.close()
+
+    def startThread(self):
+        self._recieverThread.start()
 
     def sendMessage(self, message):
         """message is a string to be sent to client"""
@@ -40,9 +46,17 @@ class Client(object):
             return None
         except ConnectionResetError:
             return "leave"
+
+    def recieverThreadMethod(self, server):
+        while not self._killThread:
+            message = self.recieveMessage()
+            if message == "leave":
+                server.disconnectClient(self)
+            else:
+                server.messageHandler(self, message)
             
-
-
+            
+        
 class Server(object):
     """Represents server"""
     def __init__(self):
@@ -63,52 +77,48 @@ class Server(object):
 
     def addNewClients(self):
         """Check if client wants to join and adds them to clientList"""
-        try:
-            conn, addr = self._serversock.accept()
-            usernameBytes = conn.recv(1024)
-            username = usernameBytes.decode()
-            print(addr, " has connected, username: ", username)
-            client = Client(conn, addr, username)
-            introMessage = """
+        while True:
+            try:
+                conn, addr = self._serversock.accept()
+                usernameBytes = conn.recv(1024)
+                username = usernameBytes.decode()
+                print(addr, " has connected, username: ", username)
+                client = Client(conn, addr, username, self)
+                introMessage = """
 ################################
 # Welcome to the chatroom!     #
 # Type to talk and enter /help #
 # for command list (WIP)       #
 ################################
 """
-            client.sendMessage(introMessage.encode())
-            joinMessage = username + " has joined the server!"
-            self._clientList.append(client)
-            self.broadcast(joinMessage)
-        except socket.timeout:
-            return None
+                client.sendMessage(introMessage.encode())
+                joinMessage = username + " has joined the server!"
+                self._clientList.append(client)
+                self.broadcast(joinMessage)
+                client.startThread()
+            except socket.timeout:
+                continue
 
     def disconnectClient(self, client):
-        if client in self._clientList:
-            client.disconnect()
-            self._clientList.remove(client)
-            message = client.getUsername() + " has disconnected."
-            self.broadcast(message.encode())
-
-    def checkNewMessages(self):
-        """Checks if anyone has entered a message and broadcasts it"""
-        for client in self._clientList:
-            messageBytes = client.recieveMessage()
-            if messageBytes == "leave":
-                self.disconnectClient(client)
-            elif messageBytes != None:
-                print("Message recieved from ", client.getAddress())
-                message = messageBytes.decode()
-                formatted = client.getUsername() + "> " + message
-                formattedBytes = formatted.encode()
-                self.broadcast(formattedBytes)
+        client.disconnect()
+        self._clientList.remove(client)
+        message = client.getUsername() + " has disconnected."
+        self.broadcast(message.encode())
 
 
+    def messageHandler(self, client, message):
+        if type(message) == bytes:
+            message = message.decode()
+        username = client.getUsername()
+        formattedName = username + "> "
+        formattedMessage = formattedName + message
+        self.broadcast(formattedMessage.encode())
+            
+            
+            
 def main():
     server = Server()
-    while True:
-        server.addNewClients()
-        server.checkNewMessages()
+    server.addNewClients()
     
 
 if __name__ == "__main__":
