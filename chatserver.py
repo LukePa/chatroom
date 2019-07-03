@@ -1,4 +1,4 @@
-import socket, threading
+import socket, threading, servercommands
 
 #port the chatroom runs on
 PORT = 6789
@@ -42,18 +42,13 @@ class Client(object):
             while not message:
                 message += self._sock.recv(4096)
             return message
-        except socket.timeout:
-            return None
         except ConnectionResetError:
-            return "leave"
+            return "/leave"
 
     def recieverThreadMethod(self, server):
         while not self._killThread:
             message = self.recieveMessage()
-            if message == "leave":
-                server.disconnectClient(self)
-            else:
-                server.messageHandler(self, message)
+            server.messageHandler(self, message)
             
             
         
@@ -61,6 +56,7 @@ class Server(object):
     """Represents server"""
     def __init__(self):
         self._clientList = []
+        self._CommandStructure = servercommands.CommandStructure()
         self._serversock = socket.socket()
         self._serversock.bind(("", PORT))
         self._serversock.listen(10)
@@ -88,7 +84,7 @@ class Server(object):
 ################################
 # Welcome to the chatroom!     #
 # Type to talk and enter /help #
-# for command list (WIP)       #
+# for command list             #
 ################################
 """
                 client.sendMessage(introMessage.encode())
@@ -109,10 +105,13 @@ class Server(object):
     def messageHandler(self, client, message):
         if type(message) == bytes:
             message = message.decode()
-        username = client.getUsername()
-        formattedName = username + "> "
-        formattedMessage = formattedName + message
-        self.broadcast(formattedMessage.encode())
+        if message[0] == "\\" or message[0] == "/":
+            self._CommandStructure.processMessage(self, client, message)
+        else:
+            username = client.getUsername()
+            formattedName = username + "> "
+            formattedMessage = formattedName + message
+            self.broadcast(formattedMessage.encode())
             
             
             
