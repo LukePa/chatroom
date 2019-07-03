@@ -1,13 +1,7 @@
 import socket, threading, sys
 
-def connector():
+def connector(address, port, username):
     try:
-        address = input("Enter server address: ")
-        port = input("Enter port: ")
-        while not port.isdigit():
-            port = input("Enter a valid port: ")
-        port = int(port)
-        username = input("Enter desired username: ")
         print("Connecting...")
         sock = socket.socket()
         sock.connect((address, port))
@@ -48,10 +42,20 @@ def sender(sock):
             sock.sendall(message.encode())
         except:
             continue
+
+def enterDetails():
+    address = input("Enter server address: ")
+    port = input("Enter port: ")
+    while not port.isdigit():
+        port = input("Enter a valid port: ")
+    port = int(port)
+    username = input("Enter desired username: ")
+    return address, port, username
             
         
 def main():
-    sock = connector()
+    address, port, username = enterDetails()
+    sock = connector(address, port, username)
     thread = threading.Thread(target = sender, args = (sock,))
     thread.setDaemon(True)
     thread.start()
