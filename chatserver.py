@@ -30,13 +30,17 @@ class Client(object):
         self._recieverThread.start()
 
     def sendMessage(self, message):
-        """message is a string to be sent to client"""
+        """Message is a string to be sent to client"""
         if type(message) == str:
             message = message.encode()
         if type(message) == bytes:
-            self._sock.sendall(message)
+            try:
+                self._sock.sendall(message)
+            except ConnectionResetError:
+                return None
 
     def recieveMessage(self):
+        """Waits until message sent by client and returns it"""
         try:
             message = self._sock.recv(4096)
             while not message:
@@ -46,6 +50,8 @@ class Client(object):
             return "/leave"
 
     def recieverThreadMethod(self, server):
+        """Runs while client not disconnected, gets message from client and
+           asks server client is part of to process it"""
         while not self._killThread:
             message = self.recieveMessage()
             server.messageHandler(self, message)
@@ -96,6 +102,7 @@ class Server(object):
                 continue
 
     def disconnectClient(self, client):
+        """Kicks a client from the server"""
         client.disconnect()
         self._clientList.remove(client)
         message = client.getUsername() + " has disconnected."
@@ -103,6 +110,7 @@ class Server(object):
 
 
     def messageHandler(self, client, message):
+        """Decides what is done with a message from a client"""
         if type(message) == bytes:
             message = message.decode()
         if message[0] == "\\" or message[0] == "/":

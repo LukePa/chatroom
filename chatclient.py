@@ -1,6 +1,7 @@
 import socket, threading, sys
 
 def connector(address, port, username):
+    """Creates connection between client and server"""
     try:
         print("Connecting...")
         sock = socket.socket()
@@ -15,7 +16,7 @@ def connector(address, port, username):
 
 
 def sendMessage(message, sock):
-    """message is a string"""
+    """Send message to serverm, message is a string"""
     try:
         sock.sendall(message.encode())
     except:
@@ -23,6 +24,7 @@ def sendMessage(message, sock):
 
 
 def reciever(sock):
+    """Runs as thread, retrives message from server and  prints it"""
     while True:
         try:
             message = sock.recv(4096)
@@ -36,6 +38,7 @@ def reciever(sock):
 
 
 def sender(sock):
+    """Retrieves message entered by client and sends it to server"""
     while True:
         try:
             message = input()
@@ -56,10 +59,10 @@ def enterDetails():
 def main():
     address, port, username = enterDetails()
     sock = connector(address, port, username)
-    thread = threading.Thread(target = sender, args = (sock,))
+    thread = threading.Thread(target = reciever, args = (sock,))
     thread.setDaemon(True)
     thread.start()
-    reciever(sock)
+    sender(sock)
 
 if __name__ == "__main__":
     main()
