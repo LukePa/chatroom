@@ -12,6 +12,7 @@ class Client(object):
         self._sock = sock
         self._address = address
         self._username = username
+        self.setAdmin(False)
         self._recieverThread = threading.Thread(target=self.recieverThreadMethod,
                                                 args=(server,))
         self._killThread = False
@@ -21,6 +22,15 @@ class Client(object):
 
     def getAddress(self):
         return self._address
+
+    def setAdmin(self, status):
+        if type(status) == bool:
+            self._adminStatus = status
+        else:
+            return None
+
+    def getAdmin(self):
+        return self._adminStatus
 
     def disconnect(self):
         self._killThread = True
@@ -47,15 +57,20 @@ class Client(object):
                 message += self._sock.recv(4096)
             return message
         except ConnectionResetError:
-            return "/leave"
+            self._killThread == True
+            return None
+        except ConnectionAbortedError:
+            self._killThread == True
+            return None
 
     def recieverThreadMethod(self, server):
         """Runs while client not disconnected, gets message from client and
            asks server client is part of to process it"""
         while not self._killThread:
             message = self.recieveMessage()
-            server.messageHandler(self, message)
-            
+            if type(message) == str or type(message) == bytes:
+                server.messageHandler(self, message)
+                
             
         
 class Server(object):
@@ -67,7 +82,23 @@ class Server(object):
         self._serversock.bind(("", PORT))
         self._serversock.listen(10)
         self._serversock.settimeout(TIMEOUTTIME)
+        password = self._inputPassword()
+        self._setAdminPassword(password)
         print("Server has started...")
+
+    def _inputPassword(self):
+        password = input("Enter admin password: ")
+        return password
+
+    def getAdminPassword(self):
+        """Something tells me having this makes the server insecure"""
+        return self._adminPassword
+
+    def _setAdminPassword(self, password):
+        self._adminPassword = password
+
+    def getClientList(self):
+        return self._clientList.copy()
 
     def broadcast(self, message):
         """Send a message to all clients"""
